@@ -1,0 +1,80 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+        {
+            "label": "build app",
+            "type": "shell",
+            "command": "docker compose -f docker-compose.yaml build",
+            "problemMatcher": []
+        },
+        {
+            "label": "build, push app",
+            "type": "shell",
+            "dependsOn": [
+                "build app"
+            ],
+            "command": "docker compose -f docker-compose.yml push",
+            "problemMatcher": []
+        },
+        {
+            "type": "docker-run",
+            "label": "docker-run: debug",
+            "dependsOn": [
+                "docker-build"
+            ],
+            "python": {
+                "module": "apache_access_summarizer"
+            }
+        },
+        {
+            "type": "docker-compose",
+            "label": "docker-compose: up dev",
+            "dependsOn": [
+                "build app"
+            ],
+            "dockerCompose": {
+                "up": {
+                  "detached": true,
+                  "build": false,
+                },
+                "files": [
+                  "${workspaceFolder}/docker-compose.yaml",
+                  "${workspaceFolder}/docker-compose.dev.yaml",
+                ]
+          },
+        },
+        {
+            "type": "docker-compose",
+            "label": "docker-compose: up",
+            "dependsOn": [
+                "build app"
+            ],
+            "dockerCompose": {
+                "up": {
+                  "detached": true,
+                  "build": false,
+                },
+                "files": [
+                  "${workspaceFolder}/docker-compose.yaml",
+                ]
+          },
+        },
+        {
+            "type": "docker-compose",
+            "label": "docker-compose: down",
+            // "dependsOn": [
+            //     "build app"
+            // ],
+            "dockerCompose": {
+                "down": {
+                //   "services": ["app"]
+                },
+                "files": [
+                  "${workspaceFolder}/docker-compose.yaml",
+                  "${workspaceFolder}/docker-compose.debug.yaml"
+                ]
+          },
+        },
+
+    ]
+}
