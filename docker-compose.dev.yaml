@@ -1,0 +1,4 @@
+services:
+  crond:
+    volumes:
+      - ./app/src:/app

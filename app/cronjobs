@@ -1,0 +1,9 @@
+MAILTO=technology@steeplechasers.org
+
+# analyze apache (caddy) logs
+00 00 * * * python apache-access-summarizer.py
+
+# # test mail
+# * * * * * echo "test mail"
+
+# remember to end this file with an empty new line
