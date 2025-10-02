@@ -1,7 +1,7 @@
 MAILTO=technology@steeplechasers.org
 
 # analyze apache (caddy) logs
-00 00 * * * python apache-access-summarizer.py
+00 00 * * * python /app/apache-access-summarizer.py
 
 # # test mail
 # * * * * * echo "test mail"
