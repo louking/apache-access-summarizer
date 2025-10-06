@@ -183,8 +183,10 @@ if __name__ == '__main__':
     
     # get time window
     end_window = datetime.now(timezone.utc)
-    # # for testing, use a fixed end time
-    # end_window = logtime.asc2dt('27/Sep/2025:16:21:34 +0000')
+    # though for testing, use a fixed end time
+    end_window_override = getenv('WINDOW_END', None)
+    if end_window_override:
+        end_window = logtime.asc2dt(end_window_override)
     
     period_hours = int(getenv('PERIOD_HOURS'))
     start_window = end_window - timedelta(hours=period_hours)
@@ -222,7 +224,10 @@ if __name__ == '__main__':
                     
                     else:
                         body.write(f"Unmatched log line: {line.strip()}")
-            
+        
+        if total_requests == 0:
+            print(f"No log entries found in the specified time window {start_window} to {end_window}")
+
         body.write(f"Total Requests: {total_requests}\n")
         body.write("Top 10 IP Addresses:\n")
         for ip, count in ip_counter.most_common(10):

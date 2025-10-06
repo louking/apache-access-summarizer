@@ -11,18 +11,19 @@ services:
     networks:
       - backend-network
     environment:
-      TZ: ${TZ}
-      APP_VER: ${APP_VER}
-      APP_NAME: ${APP_NAME}
-      PYTHON_VER: ${PYTHON_VER}
-      APACHE_LOG_HOST_PATH: ${APACHE_LOG_HOST_PATH}
-      LOG_FILES: ${LOG_FILES}
-      PERIOD_HOURS: ${PERIOD_HOURS}
-      MAILGUN_API_KEY: ${MAILGUN_API_KEY}
-      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN}
-      MAIL_FROM: ${MAIL_FROM}
-      MAIL_TO: ${MAIL_TO}
-      MAIL_SUBJECT: ${MAIL_SUBJECT}
+      - TZ=${TZ}
+      - APP_VER=${APP_VER}
+      - APP_NAME=${APP_NAME}
+      - PYTHON_VER=${PYTHON_VER}
+      - APACHE_LOG_HOST_PATH=${APACHE_LOG_HOST_PATH}
+      - LOG_FILES=${LOG_FILES}
+      - WINDOW_END
+      - PERIOD_HOURS=${PERIOD_HOURS}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
+      - MAIL_FROM=${MAIL_FROM}
+      - MAIL_TO=${MAIL_TO}
+      - MAIL_SUBJECT=${MAIL_SUBJECT}
     volumes:
       - ./config/msmtprc:/etc/msmtprc:ro
       - ${APACHE_LOG_HOST_PATH}:/logs:ro
