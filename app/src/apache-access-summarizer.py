@@ -33,8 +33,19 @@ def get_iso_country_codes():
     """
     url = "https://datahub.io/core/country-list/_r/-/data.csv"
     try:
-        response = get(url)
-        response.raise_for_status()
+        # try up to 3 times
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                response = get(url)
+                response.raise_for_status()
+                break
+            except Exception as e:
+                if attempt >= 3:
+                    raise e
+                else:
+                    print(f"Attempt {attempt} failed, retrying...")
         
         rdr = DictReader(StringIO(response.text))
         # The ISO code is in the 'Code' column and should be converted to lowercase
@@ -56,8 +67,20 @@ class CountryCidrMapper:
         Loads CIDR networks for all available country codes from ipdeny.com.
         """
         # print("Starting to load IP blocks from ipdeny.com (This may take a minute)...")
-        response = get("https://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz")
-        response.raise_for_status()
+        # try up to 3 times
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                response = get("https://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz")
+                response.raise_for_status()
+                break
+            except Exception as e:
+                if attempt >= 3:
+                    raise e
+                else:
+                    print(f"Attempt {attempt} to download country zones failed, retrying...")
+
         # note https://stackoverflow.com/a/14770631
         self.country_zones = TarFile.open(fileobj=BytesIO(response.content), mode="r:gz")
         # print(f'self.country_zones.getnames(): {self.country_zones.getnames()}')
