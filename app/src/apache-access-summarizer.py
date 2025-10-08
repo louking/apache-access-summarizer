@@ -261,7 +261,7 @@ if __name__ == '__main__':
         # send mail
         contents = body.getvalue()
         # print(contents)
-        sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), getenv('MAIL_SUBJECT'), contents)
+        sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), f'{getenv('MAIL_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}', contents)
 
     # send histogram if requested
     if calc_time_hist:
@@ -274,6 +274,6 @@ if __name__ == '__main__':
             
             contents = body.getvalue()
             sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
-                     f"{getenv('HIST_SUBJECT')} - {start_window} to {end_window}", 
-                     f"{getenv('HIST_SUBJECT')} - {start_window} to {end_window}", 
-                     files=[('attachment', (f'access_histogram_{end_window.isoformat()}.csv', contents))])
+                     f"{getenv('HIST_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
+                     f"{getenv('HIST_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
+                     files=[('attachment', (f'access_histogram_{end_window.isoformat()}.csv', contents, "text/csv"))])
