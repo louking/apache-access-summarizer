@@ -26,6 +26,7 @@ services:
       - MAIL_TO=${MAIL_TO}
       - MAIL_SUBJECT=${MAIL_SUBJECT}
       - HIST_SUBJECT=${HIST_SUBJECT}
+      - CPU_SUBJECT=${CPU_SUBJECT}
       - DO_API_TOKEN=${DO_API_TOKEN}
       - DO_HOST_ID=${DO_HOST_ID}
     volumes:

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from bisect import bisect_right
 
 # pypi
-from loutilities.timeu import asctime
+from loutilities.timeu import asctime, dt2epoch, epoch2dt
 from ipaddress import ip_address, IPv4Network
 from requests import get
 from requests.exceptions import RequestException
@@ -265,6 +265,7 @@ if __name__ == '__main__':
 
     # send histogram if requested
     if calc_time_hist:
+        # generate csv of histogram
         with StringIO() as body:
             
             hist_csv = DictWriter(body, fieldnames=['Time', 'Requests'])
@@ -277,3 +278,29 @@ if __name__ == '__main__':
                      f"{getenv('HIST_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
                      f"{getenv('HIST_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
                      files=[('attachment', (f'access_histogram_{end_window.isoformat()}.csv', contents, "text/csv"))])
+        
+        # generate cpu utilization
+        url = f'https://api.digitalocean.com/v2/monitoring/metrics/droplet/cpu?host_id={getenv('DO_HOST_ID')}&start={dt2epoch(start_window)}&end={dt2epoch(end_window)}'
+        api_token = getenv('DO_API_TOKEN')
+        headers = {'Authorization':f'Bearer {api_token}', 'Content-Type': 'application/json'}
+        resp = get(url, headers=headers)
+        resp.raise_for_status()
+        values = resp.json()['data']['result'][0]['values']
+        
+        with StringIO() as body:
+            cpu_csv = DictWriter(body, fieldnames=['Time', 'CPU (cum msec)', '%CPU'])
+            cpu_csv.writeheader()
+            last_time = None
+            last_cpu = None
+            for v in values:
+                # cpu time is cumulative in msec, round %CPU to 1/10th of a percent
+                # https://www.digitalocean.com/community/questions/get_droplet_cpu_metrics-response-format?comment=212508
+                cpu_csv.writerow({'Time': epoch2dt(v[0]).isoformat(), 'CPU (cum msec)': round(float(v[1])), '%CPU': f"{round((((float(v[1])-last_cpu))/((int(v[0])-last_time)*1000))*100, 1)}" if last_time else ''})
+                last_time = int(v[0])
+                last_cpu = float(v[1])
+            
+            contents = body.getvalue()
+            sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
+                     f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
+                     f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
+                     files=[('attachment', (f'cpu_utilization_{end_window.isoformat()}.csv', contents, "text/csv"))])
