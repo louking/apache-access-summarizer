@@ -3,7 +3,7 @@
 # standard
 import re
 from collections import Counter
-from csv import DictReader
+from csv import DictReader, DictWriter
 from io import StringIO, BytesIO
 from tarfile import TarFile
 from os import getenv
@@ -191,6 +191,11 @@ if __name__ == '__main__':
     period_hours = int(getenv('PERIOD_HOURS'))
     start_window = end_window - timedelta(hours=period_hours)
     
+    # histogram of times
+    calc_time_hist = getenv('CALC_HISTOGRAM', None)
+    if calc_time_hist:
+        time_hist = Counter()
+    
     with StringIO() as body:
         body.write(f"Log analysis from {start_window} to {end_window} ({getenv('APP_NAME')}-{getenv('APP_VER')})\n\n")
         
@@ -222,6 +227,11 @@ if __name__ == '__main__':
                         if country_code == 'UNKNOWN':
                             unknown_counter[ip] += 1
                     
+                        # optional histogram of times
+                        if calc_time_hist:
+                            hist_time = log_time.replace(second=0, microsecond=0)
+                            time_hist[hist_time] += 1
+
                     else:
                         body.write(f"Unmatched log line: {line.strip()}")
         
@@ -252,3 +262,18 @@ if __name__ == '__main__':
         contents = body.getvalue()
         # print(contents)
         sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), getenv('MAIL_SUBJECT'), contents)
+
+    # send histogram if requested
+    if calc_time_hist:
+        with StringIO() as body:
+            
+            hist_csv = DictWriter(body, fieldnames=['Time', 'Requests'])
+            hist_csv.writeheader()
+            for t in sorted(time_hist):
+                hist_csv.writerow({'Time': t.isoformat(), 'Requests': time_hist[t]})
+            
+            contents = body.getvalue()
+            sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
+                     f"{getenv('HIST_SUBJECT')} - {start_window} to {end_window}", 
+                     f"{getenv('HIST_SUBJECT')} - {start_window} to {end_window}", 
+                     files=[('attachment', (f'access_histogram_{end_window.isoformat()}.csv', contents))])

@@ -19,11 +19,15 @@ services:
       - LOG_FILES=${LOG_FILES}
       - WINDOW_END
       - PERIOD_HOURS=${PERIOD_HOURS}
+      - CALC_HISTOGRAM
       - MAILGUN_API_KEY=${MAILGUN_API_KEY}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
       - MAIL_FROM=${MAIL_FROM}
       - MAIL_TO=${MAIL_TO}
       - MAIL_SUBJECT=${MAIL_SUBJECT}
+      - HIST_SUBJECT=${HIST_SUBJECT}
+      - DO_API_TOKEN=${DO_API_TOKEN}
+      - DO_HOST_ID=${DO_HOST_ID}
     volumes:
       - ./config/msmtprc:/etc/msmtprc:ro
       - ${APACHE_LOG_HOST_PATH}:/logs:ro
