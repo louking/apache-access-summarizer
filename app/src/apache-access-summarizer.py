@@ -16,6 +16,7 @@ from loutilities.timeu import asctime, dt2epoch, epoch2dt
 from ipaddress import ip_address, IPv4Network
 from requests import get
 from requests.exceptions import RequestException
+import numpy as np
 
 # local
 from sendmail import sendmail
@@ -281,23 +282,40 @@ if __name__ == '__main__':
         
         # generate cpu utilization
         url = f'https://api.digitalocean.com/v2/monitoring/metrics/droplet/cpu?host_id={getenv('DO_HOST_ID')}&start={dt2epoch(start_window)}&end={dt2epoch(end_window)}'
-        api_token = getenv('DO_API_TOKEN')
-        headers = {'Authorization':f'Bearer {api_token}', 'Content-Type': 'application/json'}
+        headers = {'Authorization': f'Bearer {getenv('DO_API_TOKEN')}', 'Content-Type': 'application/json'}
         resp = get(url, headers=headers)
         resp.raise_for_status()
-        values = resp.json()['data']['result'][0]['values']
+        
+        timestamps = {m['metric']['mode']: np.array([int(v[0]) for v in m['values']]) for m in resp.json()['data']['result']}
+        cpumetrics = {m['metric']['mode']: np.array([float(v[1]) for v in m['values']]) for m in resp.json()['data']['result']}
+        
+        ctimes_set = None
+        for mode in timestamps:
+            if not ctimes_set:
+                ctimes_set = True
+                ctimes = timestamps[mode]
+                continue
+            if not np.array_equal(ctimes, timestamps[mode]):
+                raise ValueError('mismatched timestamps in cpu metrics')
+
+        idle = cpumetrics['idle']
+        total = sum([cpumetrics[m] for m in cpumetrics])
+        used = total - idle
+        cpu_p = (used/total)*100
+        dtimes = [epoch2dt(t).isoformat() for t in ctimes]
         
         with StringIO() as body:
             cpu_csv = DictWriter(body, fieldnames=['Time', 'CPU (cum msec)', '%CPU'])
             cpu_csv.writeheader()
-            last_time = None
-            last_cpu = None
-            for v in values:
+            # last_time = None
+            # last_cpu = None
+            for i in range(len(total)):
+                ts = ctimes[i]
                 # cpu time is cumulative in msec, round %CPU to 1/10th of a percent
                 # https://www.digitalocean.com/community/questions/get_droplet_cpu_metrics-response-format?comment=212508
-                cpu_csv.writerow({'Time': epoch2dt(v[0]).isoformat(), 'CPU (cum msec)': round(float(v[1])), '%CPU': f"{round((((float(v[1])-last_cpu))/((int(v[0])-last_time)*1000))*100, 1)}" if last_time else ''})
-                last_time = int(v[0])
-                last_cpu = float(v[1])
+                cpu_csv.writerow({'Time': dtimes[i], 'CPU (cum msec)': used[i], '%CPU': round(cpu_p[i], 1)})
+                # last_time = int(v[0])
+                # last_cpu = float(v[1])
             
             contents = body.getvalue()
             sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
