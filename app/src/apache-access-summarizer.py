@@ -20,6 +20,7 @@ import numpy as np
 
 # local
 from sendmail import sendmail
+from dometrics import get_droplet_cpu_metrics, metrics2csv
 from version import __version__
 
 logdtfmt = '%d/%b/%Y:%H:%M:%S %z'
@@ -264,7 +265,7 @@ if __name__ == '__main__':
         # print(contents)
         sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), f'{getenv('MAIL_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}', contents)
 
-    # send histogram if requested
+    # send histogram and DigitalOcean stats if requested
     if calc_time_hist:
         # generate csv of histogram
         with StringIO() as body:
@@ -281,44 +282,11 @@ if __name__ == '__main__':
                      files=[('attachment', (f'access_histogram_{end_window.isoformat()}.csv', contents, "text/csv"))])
         
         # generate cpu utilization
-        url = f'https://api.digitalocean.com/v2/monitoring/metrics/droplet/cpu?host_id={getenv('DO_HOST_ID')}&start={dt2epoch(start_window)}&end={dt2epoch(end_window)}'
-        headers = {'Authorization': f'Bearer {getenv('DO_API_TOKEN')}', 'Content-Type': 'application/json'}
-        resp = get(url, headers=headers)
-        resp.raise_for_status()
-        
-        timestamps = {m['metric']['mode']: np.array([int(v[0]) for v in m['values']]) for m in resp.json()['data']['result']}
-        cpumetrics = {m['metric']['mode']: np.array([float(v[1]) for v in m['values']]) for m in resp.json()['data']['result']}
-        
-        ctimes_set = None
-        for mode in timestamps:
-            if not ctimes_set:
-                ctimes_set = True
-                ctimes = timestamps[mode]
-                continue
-            if not np.array_equal(ctimes, timestamps[mode]):
-                raise ValueError('mismatched timestamps in cpu metrics')
+        metrics = get_droplet_cpu_metrics(getenv('DO_API_TOKEN'), int(getenv('DO_HOST_ID')), dt2epoch(start_window), dt2epoch(end_window))
+        contents = metrics2csv(metrics)
 
-        idle = cpumetrics['idle']
-        total = sum([cpumetrics[m] for m in cpumetrics])
-        used = total - idle
-        cpu_p = (used/total)*100
-        dtimes = [epoch2dt(t).isoformat() for t in ctimes]
-        
-        with StringIO() as body:
-            cpu_csv = DictWriter(body, fieldnames=['Time', 'CPU (cum msec)', '%CPU'])
-            cpu_csv.writeheader()
-            # last_time = None
-            # last_cpu = None
-            for i in range(len(total)):
-                ts = ctimes[i]
-                # cpu time is cumulative in msec, round %CPU to 1/10th of a percent
-                # https://www.digitalocean.com/community/questions/get_droplet_cpu_metrics-response-format?comment=212508
-                cpu_csv.writerow({'Time': dtimes[i], 'CPU (cum msec)': used[i], '%CPU': round(cpu_p[i], 1)})
-                # last_time = int(v[0])
-                # last_cpu = float(v[1])
-            
-            contents = body.getvalue()
-            sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
-                     f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
-                     f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
-                     files=[('attachment', (f'cpu_utilization_{end_window.isoformat()}.csv', contents, "text/csv"))])
+        # send csv file via email
+        sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
+                    f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
+                    f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
+                    files=[('attachment', (f'cpu_utilization_{end_window.isoformat()}.csv', contents, "text/csv"))])
