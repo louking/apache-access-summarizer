@@ -47,7 +47,7 @@ def get_iso_country_codes():
                 if attempt >= 3:
                     raise e
                 else:
-                    print(f"Attempt {attempt} failed, retrying...")
+                    print(f"Attempt {attempt} to get list of country codes failed, retrying...")
         
         rdr = DictReader(StringIO(response.text))
         # The ISO code is in the 'Code' column and should be converted to lowercase
@@ -193,6 +193,10 @@ if __name__ == '__main__':
     period_hours = int(getenv('PERIOD_HOURS'))
     start_window = end_window - timedelta(hours=period_hours)
     
+    # window text for emails
+    start_window_str = start_window.isoformat(timespec='seconds')
+    end_window_str = end_window.isoformat(timespec='seconds')
+    
     # histogram of times
     calc_time_hist = getenv('CALC_HISTOGRAM', None)
     if calc_time_hist:
@@ -261,11 +265,11 @@ if __name__ == '__main__':
         body.write(f"Processing completed in {duration}\n")
         
         # send mail
-        contents = body.getvalue()
+        mainbody = body.getvalue()
         # print(contents)
-        sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), f'{getenv('MAIL_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}', contents)
 
     # send histogram and DigitalOcean stats if requested
+    files = []
     if calc_time_hist:
         # generate csv of histogram
         with StringIO() as body:
@@ -273,20 +277,21 @@ if __name__ == '__main__':
             hist_csv = DictWriter(body, fieldnames=['Time', 'Requests'])
             hist_csv.writeheader()
             for t in sorted(time_hist):
-                hist_csv.writerow({'Time': t.isoformat(), 'Requests': time_hist[t]})
+                hist_csv.writerow({'Time': t.isoformat(timespec='seconds'), 'Requests': time_hist[t]})
             
-            contents = body.getvalue()
-            sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
-                     f"{getenv('HIST_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
-                     f"{getenv('HIST_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
-                     files=[('attachment', (f'access_histogram_{end_window.isoformat()}.csv', contents, "text/csv"))])
+            histcontent = body.getvalue()
+        
         
         # generate cpu utilization
         metrics = get_droplet_cpu_metrics(getenv('DO_API_TOKEN'), int(getenv('DO_HOST_ID')), dt2epoch(start_window), dt2epoch(end_window))
-        contents = metrics2csv(metrics)
+        metriccontent = metrics2csv(metrics)
 
-        # send csv file via email
-        sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
-                    f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
-                    f"{getenv('CPU_SUBJECT')} - {start_window.isoformat()} to {end_window.isoformat()}", 
-                    files=[('attachment', (f'cpu_utilization_{end_window.isoformat()}.csv', contents, "text/csv"))])
+        # send csv files via email
+        files.append(('attachment', (f'access_histogram_{end_window_str}.csv', histcontent, "text/csv")))
+        files.append(('attachment', (f'cpu_utilization_{end_window_str}.csv', metriccontent, "text/csv")))
+    
+    # send email, with optional attachments
+    sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
+             f'{getenv('MAIL_SUBJECT')} - {start_window_str} to {end_window_str}', 
+             mainbody,
+             files=files)
