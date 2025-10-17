@@ -281,7 +281,7 @@ if __name__ == '__main__':
             hist_csv = DictWriter(body, fieldnames=['Time', 'Requests'])
             hist_csv.writeheader()
             for t in sorted(time_hist):
-                hist_csv.writerow({'Time': t.isoformat(timespec='seconds'), 'Requests': time_hist[t]})
+                hist_csv.writerow({'Time': t.replace(tzinfo=None).isoformat(timespec='seconds'), 'Requests': time_hist[t]})
             
             histcontent = body.getvalue()
         
