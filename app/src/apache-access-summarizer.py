@@ -25,6 +25,8 @@ from version import __version__
 
 logdtfmt = '%d/%b/%Y:%H:%M:%S %z'
 logtime = asctime(logdtfmt)
+fndtfmt = '%Y-%m-%d %H%M'
+fntime = asctime(fndtfmt)
 
 class ParameterError(Exception):
     pass
@@ -194,8 +196,8 @@ if __name__ == '__main__':
     start_window = end_window - timedelta(hours=period_hours)
     
     # window text for emails
-    start_window_str = start_window.isoformat(timespec='seconds')
-    end_window_str = end_window.isoformat(timespec='seconds')
+    start_window_str = fntime.dt2asc(start_window)
+    end_window_str = fntime.dt2asc(end_window)
     
     # histogram of times
     calc_time_hist = getenv('CALC_HISTOGRAM', None)
@@ -268,8 +270,10 @@ if __name__ == '__main__':
         mainbody = body.getvalue()
         # print(contents)
 
+    # attach report file email
+    files = [('attachment', (f'{end_window_str} accesses.log', mainbody, "text/plain"))]
+
     # send histogram and DigitalOcean stats if requested
-    files = []
     if calc_time_hist:
         # generate csv of histogram
         with StringIO() as body:
@@ -287,8 +291,8 @@ if __name__ == '__main__':
         metriccontent = metrics2csv(metrics)
 
         # send csv files via email
-        files.append(('attachment', (f'access_histogram_{end_window_str}.csv', histcontent, "text/csv")))
-        files.append(('attachment', (f'cpu_utilization_{end_window_str}.csv', metriccontent, "text/csv")))
+        files.append(('attachment', (f'{end_window_str} access_histogram.csv', histcontent, "text/csv")))
+        files.append(('attachment', (f'{end_window_str} cpu_utilization.csv', metriccontent, "text/csv")))
     
     # send email, with optional attachments
     sendmail(getenv('MAIL_FROM'), getenv('MAIL_TO'), 
